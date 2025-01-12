@@ -4,14 +4,17 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 
 class InventoryItem(models.Model):
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=255, unique=True)
+    user = models.ForeignKey(User, related_name='inventory_items', on_delete=models.CASCADE)
     description = models.TextField()
-    quantity = models.PositiveIntegerField()  # Number of items in stock
-    price = models.DecimalField(max_digits=10, decimal_places=2)  # Price of each item
-    owner = models.ForeignKey(get_user_model(), related_name='inventory_items', on_delete=models.CASCADE)  # Related to the user
+    quantity = models.PositiveIntegerField()
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    category = models.CharField(max_length=255)
+    date_added = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.name} - {self.quantity} in stock"
+        return self.name
 
 class Category(models.Model):
     name = models.CharField(max_length=100)

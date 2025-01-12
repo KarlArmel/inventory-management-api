@@ -11,6 +11,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class InventoryItemSerializer(serializers.ModelSerializer):
     category = CategorySerializer()
+    user = UserSerializer(read_only=True)
 
     class Meta:
         model = Inventory
@@ -24,3 +25,9 @@ class InventoryChangeSerializer(serializers.ModelSerializer):
         model = InventoryChange
         fields = ['id', 'inventory_item', 'quantity_changed', 'date_changed', 'changed_by']
         fields = ['id', 'item', 'user', 'change_type', 'quantity_change', 'created_at']
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email']

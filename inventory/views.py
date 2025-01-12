@@ -14,7 +14,7 @@ class InventoryChangeHistoryView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Filter by item ID (if provided)"""
+        
         item_id = self.request.query_params.get('item_id', None)
         if item_id:
             return InventoryChange.objects.filter(item__id=item_id).order_by('-created_at')
@@ -39,23 +39,60 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
             user=self.request.user,
             change_type='restock',
             quantity_change=item.quantity
-        )    
+        )   
+    def get_queryset(self):
+        return InventoryItem.objects.filter(user=self.request.user)     
     def perform_update(self, serializer):
         item = serializer.save()
 
-        # Calculate the quantity change
+        
         old_quantity = InventoryItem.objects.get(id=item.id).quantity
         quantity_change = item.quantity - old_quantity
 
         if quantity_change != 0:
-            # Log the quantity change (restock or sell)
+            
             change_type = 'restock' if quantity_change > 0 else 'sell'
             InventoryChange.objects.create(
                 item=item,
                 user=self.request.user,
                 change_type=change_type,
                 quantity_change=quantity_change
-            )    
+            ) 
+    def view_inventory_levels(self, request):
+        """Custom endpoint to view inventory levels with optional filters."""
+        category = request.query_params.get('category', None)
+        price_min = request.query_params.get('price_min', None)
+        price_max = request.query_params.get('price_max', None)
+        low_stock = request.query_params.get('low_stock', None)
+
+        queryset = self.get_queryset()
+        
+        # Apply category filter
+        if category:
+            queryset = queryset.filter(category=category)
+
+        # Apply price range filter
+        if price_min and price_max:
+            queryset = queryset.filter(price__gte=price_min, price__lte=price_max)
+
+        # Apply low stock filter (e.g., items with quantity below 5)
+        if low_stock:
+            queryset = queryset.filter(quantity__lt=5)
+
+        # Return the filtered inventory data
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path='inventory-changes')
+    def track_inventory_changes(self, request, pk=None):
+        """Custom endpoint to view inventory changes history for an item."""
+        item = self.get_object()
+        changes = item.inventorychange_set.all()  # Assuming an InventoryChange model exists to track updates
+        # Assuming InventoryChange has a serializer
+        from .serializers import InventoryChangeSerializer
+        serializer = InventoryChangeSerializer(changes, many=True)
+        return Response(serializer.data)           
+
 
     @action(detail=True, methods=['get'])
     def inventory_changes(self, request, pk=None):
